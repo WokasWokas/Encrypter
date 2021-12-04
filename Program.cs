@@ -1,9 +1,10 @@
 ﻿using System;
+using System;
 using System.Text;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
-namespace Encrypter
+namespace GetOneOfNumber
 {
     class Program
     {
@@ -17,9 +18,7 @@ namespace Encrypter
                 if (string.IsNullOrWhiteSpace(message))
                     continue;
                 var encrypted = encrypter.Encrypt(message);
-                Console.WriteLine(encrypted);
                 var decoded = encrypter.Decode(encrypted);
-                Console.WriteLine(decoded);
             }
         }
     }
@@ -29,8 +28,8 @@ namespace Encrypter
         private readonly ushort KeyLength;
         private ulong FirstPrime;
         private ulong SecondPrime;
-        private ulong MultiplyPrime;
         private ulong Euler;
+        private ulong GCD;
         private ulong PublicKey;
         private ulong PrivateKey;
         private ulong Exponent;
@@ -41,41 +40,54 @@ namespace Encrypter
             Console.WriteLine("---------Information---------");
             Console.WriteLine($"First Prime: {FirstPrime}");
             Console.WriteLine($"Second Prime: {SecondPrime}");
-            Console.WriteLine($"Multiply Prime: {MultiplyPrime}");
             Console.WriteLine($"Euler: {Euler}");
             Console.WriteLine($"Exponent: {Exponent}");
-            Console.WriteLine($"NOD(Exponent, Euler): {gcd(Exponent, Euler)}");
+            System.Console.WriteLine($"GCD: {GCD}");
             Console.WriteLine($"Public Key: {PublicKey}");
             Console.WriteLine($"Private Key: {PrivateKey}");
             Console.WriteLine("-----------------------------");
         }
         public string Encrypt(string message)
         {
-            List<string> Blocks = SplitMessage(message, 2);
+            Console.WriteLine(' ');
+            Console.WriteLine("Encrypting...");
+            List<string> Blocks = SplitMessage(message, 8);
             List<ulong> EncryptedBlocks = new List<ulong>();
-            if (SplitMessage(Blocks[Blocks.Count - 1], 1).Count == 1)
-                Blocks[Blocks.Count - 1] = ' ' + Blocks[Blocks.Count - 1];
+            if (SplitMessage(Blocks[^1], 1).Count != 8)
+                Blocks[^1] += "       ";
             foreach (string Block in Blocks)
             {
+                Console.WriteLine(' ');
+                Console.WriteLine($"Block {Blocks.IndexOf(Block)}: ");
                 byte[] bytes = unicode.GetBytes(Block);
-                ushort IntegerMessage = BitConverter.ToUInt16(bytes);
-                Console.WriteLine($"Enc: {IntegerMessage}");
-                EncryptedBlocks.Add(PowMod(IntegerMessage, Exponent, PublicKey));
+                ulong IntegerMessage = BitConverter.ToUInt64(bytes);
+                ulong IntegerValue = PowMod(IntegerMessage, Exponent, PublicKey);
+                EncryptedBlocks.Add(IntegerValue);
+                Console.WriteLine($"Value: {Block}");
+                Console.WriteLine($"Bytes: {BitConverter.ToString(bytes)}");
+                Console.WriteLine($"IntegerMessage: {IntegerMessage}");
+                Console.WriteLine($"EncryptedValue: {IntegerValue}");
             }
             return String.Join(' ', EncryptedBlocks);
         }
         public string Decode(string message)
         {
+            Console.WriteLine(' ');
+            Console.WriteLine("Decoding...");
             string[] Blocks = message.Split(' ');
             List<string> DecodedMessage = new List<string>();
             foreach (string Block in Blocks)
             {
-                var block = UInt32.Parse(Block);
-                Console.WriteLine($"Block: {block}");
-                var IntegerMessage = PowMod(block, PrivateKey, PublicKey);
-                Console.WriteLine($"Dec: {IntegerMessage}");
+                Console.WriteLine(' ');
+                Console.WriteLine($"Block #: ");
+                ulong IntegerValue = UInt64.Parse(Block);
+                ulong IntegerMessage = PowMod(IntegerValue, PrivateKey, PublicKey);
                 byte[] bytes = BitConverter.GetBytes(IntegerMessage);
                 DecodedMessage.Add(unicode.GetString(bytes));
+                Console.WriteLine($"Value: {unicode.GetString(bytes)}");
+                Console.WriteLine($"Bytes: {BitConverter.ToString(bytes)}");
+                Console.WriteLine($"IntegerMessage: {IntegerMessage}");
+                Console.WriteLine($"IntegerValue: {IntegerValue}");
             }
             return String.Join(' ', DecodedMessage);
         }
@@ -102,11 +114,11 @@ namespace Encrypter
         {
             FirstPrime = GetPrimeNumber();
             SecondPrime = GetPrimeNumber();
-            MultiplyPrime = FirstPrime * SecondPrime;
-            PublicKey = MultiplyPrime;
+            PublicKey = FirstPrime * SecondPrime;
             Euler = (FirstPrime - 1) * (SecondPrime - 1);
-            Exponent = 65537;
-            PrivateKey = (gcd(Exponent, Euler) * Euler + 1) / Exponent;
+            Exponent = GetPrimeNumber();
+            GCD = gcd(Euler, Exponent);
+            PrivateKey = (GCD * Euler + 1) / Exponent;
         }
         private ulong gcd(ulong val1, ulong val2)
         {
@@ -142,7 +154,9 @@ namespace Encrypter
                     else
                         continue;
                 }
-            } catch (WrongKeyLength e) {
+            }
+            catch (WrongKeyLength e)
+            {
                 Console.WriteLine(e);
                 System.Environment.Exit(1);
             }
@@ -150,6 +164,8 @@ namespace Encrypter
         }
         private bool IsPrime(ulong num)
         {
+            if (num == 2 | num == 3)
+                return true;
             if (num % 2 == 0 | num % 3 == 0)
                 return false;
             for (ulong i = 5; i * i < num; i += 4)
